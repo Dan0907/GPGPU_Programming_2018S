@@ -1,0 +1,7 @@
+*.tex
+*.pdf
+*.o
+*.out
+*.y4m
+Makefile
+
