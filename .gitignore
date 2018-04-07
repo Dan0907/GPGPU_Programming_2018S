@@ -3,5 +3,6 @@
 *.o
 *.out
 *.y4m
+*.mkv
 Makefile
 
