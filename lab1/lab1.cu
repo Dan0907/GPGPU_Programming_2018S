@@ -1,8 +1,8 @@
 #include "lab1.h"
 #include "math.h"
 #define PI 3.14159265358979323846
-static const int W = 720;
-static const int H = 720;
+static const int W = 640;
+static const int H = 480;
 static const unsigned NFRAME = 720;
 
 struct Lab1VideoGenerator::Impl {
