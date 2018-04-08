@@ -7,9 +7,6 @@ static const unsigned NFRAME = 720;
 
 struct Lab1VideoGenerator::Impl {
 	int t = 0;
-	int foo(int a) {
-		return 0;
-	}
 };
 
 Lab1VideoGenerator::Lab1VideoGenerator(): impl(new Impl) {
