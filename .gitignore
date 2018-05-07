@@ -4,5 +4,4 @@
 *.out
 *.y4m
 *.mkv
-Makefile
-
+*.txt
