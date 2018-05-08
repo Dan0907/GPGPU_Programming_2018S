@@ -7,7 +7,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/execution_policy.h>
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 512 
 
 __device__ __host__ int CeilDiv(int a, int b) { return (a-1)/b + 1; }
 __device__ __host__ int CeilAlign(int a, int b) { return CeilDiv(a, b) * b; }
@@ -34,8 +34,10 @@ __global__ void scan(int *pos, int n)
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i >= n)
 		return;
-	if (i >= pos[i])
-		pos[i] += pos[i - pos[i]];
+	int tmp = pos[i];
+	int pre;
+	if (tmp && i >= tmp && (pre = pos[i - tmp]) != 0)
+		pos[i] = tmp + pre;
 }
 
 __global__ void init(const char *text, int *pos, int n)
