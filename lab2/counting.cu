@@ -8,6 +8,11 @@
 #include <thrust/execution_policy.h>
 
 #define BLOCK_SIZE 256
+#define SWAP(a, b) do {\
+	int *tmp_ptr = a;\
+	a = b;\
+	b = tmp_ptr;\
+} while (0)
 
 __device__ __host__ int CeilDiv(int a, int b) { return (a-1)/b + 1; }
 __device__ __host__ int CeilAlign(int a, int b) { return CeilDiv(a, b) * b; }
@@ -29,32 +34,44 @@ void CountPosition1(const char *text, int *pos, int text_size)
 		result_ptr + text_size, result_ptr, result_ptr);
 }
 
-__global__ void scan(int *res, int n, int shift_num, int dir)
+__global__ void scan(int *pos, int *tmp_arr, int n)
 {
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i >= n)
 		return;
-	if ((i >> shift_num) % 2 == dir && i >= res[i]) {
-		res[i] += res[i - res[i]];
+	if (i >= tmp_arr[i]) {
+		pos[i] = tmp_arr[i] + tmp_arr[i - tmp_arr[i]];
+	} else {
+		pos[i] = tmp_arr[i];
 	}
 }
 
-__global__ void init(const char *text, int *res, int n)
+__global__ void init(const char *text, int *pos, int n)
 {
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i >= n)
 		return;
 	if (text[i] != '\n')
-		res[i] = 1;
+		pos[i] = 1;
 }
 
 void CountPosition2(const char *text, int *pos, int text_size)
 {
 	int i;
 	int grid_size = CeilDiv(text_size, BLOCK_SIZE);
+	int *ori_ptr = pos;
+	int *tmp_arr;
+	cudaMalloc(&tmp_arr, sizeof *tmp_arr * text_size);
 	init<<<grid_size, BLOCK_SIZE>>>(text, pos, text_size);
-	for (i = 0; i <= 8; i++) {
-		scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size, i, 0);
-		scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size, i, 1);
+	for (i = 0; i < 9; i++) {
+		SWAP(pos, tmp_arr);
+		scan<<<grid_size, BLOCK_SIZE>>>(pos, tmp_arr, text_size);
+	}
+	if (ori_ptr != pos) {
+		cudaMemcpy(ori_ptr, pos, sizeof *ori_ptr * text_size,
+			cudaMemcpyDeviceToDevice);
+		cudaFree(pos);
+	} else {
+		cudaFree(tmp_arr);
 	}
 }
