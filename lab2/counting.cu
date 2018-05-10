@@ -29,14 +29,14 @@ void CountPosition1(const char *text, int *pos, int text_size)
 		result_ptr + text_size, result_ptr, result_ptr);
 }
 
-__global__ void scan(int *pos, int n)
+__global__ void scan(const char *text, int *pos, int n)
 {
 	const int index = blockIdx.x * blockDim.x + threadIdx.x;
 	const int index_t = threadIdx.x;
 	__shared__ int s[BLOCK_SIZE];
 	if (index >= n)
 		return;
-	s[index_t] = pos[index];
+	s[index_t] = text[index] != '\n' ? 1 : 0;
 	for (int i = 0; i < 9; i++) {
 		__syncthreads();
 		if (s[index_t] && index_t >= s[index_t]
@@ -45,7 +45,8 @@ __global__ void scan(int *pos, int n)
 		else
 			break;
 	}
-	pos[index] = s[index_t];
+	if (s[index_t])
+		pos[index] = s[index_t];
 }
 
 __global__ void final_scan(int *pos, int n)
@@ -53,34 +54,27 @@ __global__ void final_scan(int *pos, int n)
 	const int index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (index >= n)
 		return;
-	if (pos[index] && threadIdx.x < pos[index] && index >= pos[index]
+	if (threadIdx.x < pos[index] && index >= pos[index]
 		&& pos[index - pos[index]])
 		pos[index] += pos[index - pos[index]];
 }
 
-__global__ void init(const char *text, int *pos, int n)
+__global__ void slow(const char *text, int *pos, int n)
 {
 	const int index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (index >= n)
 		return;
 	if (text[index] != '\n')
 		pos[index] = 1;
-}
-__global__ void slow(int *pos, int n)
-{
-	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i >= n)
-		return;
 	int j;
-	for (j = 0; i - j >= 0 &&  pos[i - j] != 0; j++);
-	pos[i] = j;
+	for (j = 0; index - j >= 0 &&  pos[index - j] != 0; j++);
+	if (pos[index])
+		pos[index] = j;
 }
 
 void CountPosition2(const char *text, int *pos, int text_size)
 {
 	int grid_size = CeilDiv(text_size, BLOCK_SIZE);
-	init<<<grid_size, BLOCK_SIZE>>>(text, pos, text_size);
-	//slow<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
-	scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
+	scan<<<grid_size, BLOCK_SIZE>>>(text, pos, text_size);
 	final_scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
 }
