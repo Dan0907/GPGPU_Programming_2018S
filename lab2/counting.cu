@@ -37,16 +37,16 @@ __global__ void scan(const char *text, int *pos, int n)
 	if (index >= n)
 		return;
 	s[index_t] = text[index] != '\n' ? 1 : 0;
+	if (!s[index_t])
+		return;
 	for (int i = 0; i < 9; i++) {
 		__syncthreads();
-		if (s[index_t] && index_t >= s[index_t]
-			&& s[index_t - s[index_t]])
+		if (index_t >= s[index_t] && s[index_t - s[index_t]])
 			s[index_t] += s[index_t - s[index_t]];
 		else
 			break;
 	}
-	if (s[index_t])
-		pos[index] = s[index_t];
+	pos[index] = s[index_t];
 }
 
 __global__ void final_scan(int *pos, int n)
