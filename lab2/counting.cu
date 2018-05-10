@@ -37,14 +37,13 @@ __global__ void scan(int *pos, int n)
 	if (index >= n)
 		return;
 	s[index_t] = pos[index];
-	__syncthreads();
 	for (int i = 0; i < 9; i++) {
+		__syncthreads();
 		if (s[index_t] && index_t >= s[index_t]
 			&& s[index_t - s[index_t]])
 			s[index_t] += s[index_t - s[index_t]];
 		else
 			break;
-		__syncthreads();
 	}
 	pos[index] = s[index_t];
 }
