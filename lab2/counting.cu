@@ -31,22 +31,41 @@ void CountPosition1(const char *text, int *pos, int text_size)
 
 __global__ void scan(int *pos, int n)
 {
-	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i >= n)
+	const int index = blockIdx.x * blockDim.x + threadIdx.x;
+	const int index_t = threadIdx.x;
+	__shared__ int s[BLOCK_SIZE];
+	if (index >= n)
 		return;
-	int tmp = pos[i];
-	int pre;
-	if (tmp && i >= tmp && (pre = pos[i - tmp]) != 0)
-		pos[i] = tmp + pre;
+	s[index_t] = pos[index];
+	__syncthreads();
+	for (int i = 0; i < 9; i++) {
+		if (s[index_t] && index_t >= s[index_t]
+			&& s[index_t - s[index_t]])
+			s[index_t] += s[index_t - s[index_t]];
+		else
+			break;
+		__syncthreads();
+	}
+	pos[index] = s[index_t];
+}
+
+__global__ void final_scan(int *pos, int n)
+{
+	const int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index >= n)
+		return;
+	if (pos[index] && threadIdx.x < pos[index] && index >= pos[index]
+		&& pos[index - pos[index]])
+		pos[index] += pos[index - pos[index]];
 }
 
 __global__ void init(const char *text, int *pos, int n)
 {
-	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i >= n)
+	const int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index >= n)
 		return;
-	if (text[i] != '\n')
-		pos[i] = 1;
+	if (text[index] != '\n')
+		pos[index] = 1;
 }
 __global__ void slow(int *pos, int n)
 {
@@ -60,10 +79,9 @@ __global__ void slow(int *pos, int n)
 
 void CountPosition2(const char *text, int *pos, int text_size)
 {
-	int i;
 	int grid_size = CeilDiv(text_size, BLOCK_SIZE);
 	init<<<grid_size, BLOCK_SIZE>>>(text, pos, text_size);
 	//slow<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
-	for (i = 0; i < 9; i++)
-		scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
+	scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
+	final_scan<<<grid_size, BLOCK_SIZE>>>(pos, text_size);
 }
